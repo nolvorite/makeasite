@@ -1,45 +1,55 @@
 <?php
-
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Hash;
 
+/**
+ * Class User
+ *
+ * @package App
+ * @property string $name
+ * @property string $email
+ * @property string $password
+ * @property string $role
+ * @property string $remember_token
+*/
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use SoftDeletes;
+
+    protected $fillable = ['name', 'email', 'password', 'remember_token', 'role_id'];
+
+    public static function boot()
+    {
+        parent::boot();
+
+        User::observe(new \App\Observers\UserActionsObserver);
+    }
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
+     * Hash password
+     * @param $input
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+    public function setPasswordAttribute($input)
+    {
+        if ($input) {
+            $this->attributes['password'] = app('hash')->needsRehash($input) ? Hash::make($input) : $input;
+        }
+    }
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
+     * Set to null if empty
+     * @param $input
      */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    public function setRoleIdAttribute($input)
+    {
+        $this->attributes['role_id'] = $input ? $input : null;
+    }
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-    ];
+    public function role()
+    {
+        return $this->belongsTo(Role::class, 'role_id')->withTrashed();
+    }
 }
